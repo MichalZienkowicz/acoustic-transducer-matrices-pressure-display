@@ -77,17 +77,12 @@ classdef Pressure_displayer_project < matlab.apps.AppBase
         focusPointY
         focusPointZ % coordinates of point of focus of speakers waves
         PressureValueVectorX
-        PressureVauelVectorY
+        PressureValueVectorY
         PressureValueVectorZ % vectors creating grid, sizes appropriate for val array
         phaseArrayBottom % phases of top speakers
         phaseArrayTop % phases of bottom speakers
         ValArray % array of pressure data ready to be plotted
-        substituteFocPointX 
-        substituteFocPointY % used for displaying plots, to visualise data 
-                            % despite unfound calculating error, which 
-                            % repleces X and Y at some point
         dataReady % boolean used to properly handle displaying data
-
     end
 
     
@@ -107,7 +102,6 @@ classdef Pressure_displayer_project < matlab.apps.AppBase
                 plot3(app.UIAxes_3, xUnit,yUnit,zUnitBottom,"Color",'r',LineWidth=0.7);
                 plot3(app.UIAxes_3, xUnit,yUnit,zUnitTop,"Color",'r',LineWidth=0.7);
             end
-
         end
         
         function CountSpeakerCoordinates(app)
@@ -119,7 +113,6 @@ classdef Pressure_displayer_project < matlab.apps.AppBase
 
             app.speakerCoordinatesX = (0:(2*r+spreadX):(nX-1)*(2*r+spreadX));
             app.speakerCoordinatesY = (0:(2*r+spreadY):(nY-1)*(2*r+spreadY));
-            
         end
         
         function [xVec,yVec,zVec] = MakeMeshgridBase(app)
@@ -136,8 +129,7 @@ classdef Pressure_displayer_project < matlab.apps.AppBase
             
             xVec = linspace(Xmin-border-r,Xmax+border+r,Xstep);
             yVec = linspace(Ymin-border-r,Ymax+border+r,Ystep);
-            zVec = linspace(0,height,Zstep);
-            
+            zVec = linspace(0,height,Zstep); 
         end
         
         function TryUpdateSpeakerDistrib(app)
@@ -160,8 +152,7 @@ classdef Pressure_displayer_project < matlab.apps.AppBase
             xlabel(app.UIAxes_3,"X");
             ylabel(app.UIAxes_3,"Y");
             zlabel(app.UIAxes_3,"Z");
-            view(app.UIAxes_3,120,30);
-              
+            view(app.UIAxes_3,120,30);              
         end
         
         function [xFoc,yFoc,zFoc] = CountFocusPointCoordinates(app)
@@ -173,8 +164,7 @@ classdef Pressure_displayer_project < matlab.apps.AppBase
                 xFoc = (app.speakerCoordinatesX(end))*app.XEditField.Value/100;
                 yFoc = (app.speakerCoordinatesY(end))*app.YEditField.Value/100;
                 zFoc = app.topbottomdistmEditField.Value*app.ZEditField.Value/100;
-            end
-            
+            end            
         end
                 
         function UpdateFocusPointEditFields(app)
@@ -190,8 +180,7 @@ classdef Pressure_displayer_project < matlab.apps.AppBase
                 app.XEditField.Value = app.speakerCoordinatesX(end)*previousX/100;
                 app.YEditField.Value = app.speakerCoordinatesY(end)*previousY/100;
                 app.ZEditField.Value = app.topbottomdistmEditField.Value*previousZ/100;
-            end
-            
+            end            
         end
         
         function FocPointPlot3D(app)
@@ -206,51 +195,34 @@ classdef Pressure_displayer_project < matlab.apps.AppBase
             plot3(app.UIAxes_3,xUnit2,yUnit1,zUnit1,xUnit1,yUnit2,zUnit1,xUnit1,yUnit1,zUnit2,"Color",'b',"LineWidth",0.5)
         end
         
-        
         function phiArray = CountPhaseArray(app,height)
             f = app.signalfrequencyHzEditField.Value;
             omega = 2*pi*f;
             c = 343;
-            phi = zeros(length(app.speakerCoordinatesX), length(app.speakerCoordinatesY));
-            for ix = 1:length(app.speakerCoordinatesX)
-                for iy = 1:length(app.speakerCoordinatesY)
-                    focusR = sqrt((app.speakerCoordinatesX(ix)-app.focusPointX)^2+ ...
-                                  (app.speakerCoordinatesY(iy)-app.focusPointY)^2+ ...
-                                  (height - app.focusPointZ)^2);
-                    phi(ix,iy) = omega*rem(focusR,(f/c))/c;
-                end
-            end
-            phiArray = phi;
+
+            [Sx, Sy] = meshgrid(app.speakerCoordinatesX, app.speakerCoordinatesY);
+            focusR = sqrt((Sx - app.focusPointX).^2 + (Sy - app.focusPointY).^2 + (height - app.focusPointZ).^2);
+            phiArray = omega * rem(focusR, (c/f)) / c;
         end
         
         function CountPressureLevelData(app,phi0bottom,phi0top)
-            f = app.signalfrequencyHzEditField.Value;
+            k = 2*pi*app.signalfrequencyHzEditField.Value / 343;
             A = app.signalamplitudeEditField.Value;
-            omega = 2*pi*f;
-            c = 343;
-            X = app.speakerCoordinatesX;
-            Y = app.speakerCoordinatesY;
-            Zbottom = 0;
-            Ztop = app.topbottomdistmEditField.Value;
             
-            for ixV = 1:length(app.PressureValueVectorX)
-                for iyV = 1:length(app.PressureVauelVectorY)
-                    for izV = 1:length(app.PressureValueVectorZ)
-                        p=0;
-                        for ix=1:length(X)
-                            for iy=1:length(Y)            
-                                rBottom = sqrt((app.PressureValueVectorX(ixV)-X(ix))^2 + (app.PressureVauelVectorY(iyV)-Y(iy))^2 + (app.PressureValueVectorZ(izV)-Zbottom)^2);
-                                rTop = sqrt((app.PressureValueVectorX(ixV)-X(ix))^2 + (app.PressureVauelVectorY(iyV)-Y(iy))^2 + (app.PressureValueVectorZ(izV)-Ztop)^2);
-                                p = p+A/rBottom*cos(omega*rBottom/c - app.phaseArrayBottom(ix,iy) + phi0bottom) + A/rTop*cos(omega*rTop/c - app.phaseArrayTop(ix,iy) + phi0top);
-                            end
-                        end
-                        app.ValArray(ixV,iyV,izV) = p;
-                    end
-                end
-            end
-            
-        end
+            [Xg, Yg, Zg] = meshgrid(app.PressureValueVectorX, app.PressureValueVectorY, app.PressureValueVectorZ);
+            app.ValArray = zeros(size(Xg)); 
         
+            [Sx, Sy] = meshgrid(app.speakerCoordinatesX, app.speakerCoordinatesY);
+            
+            for i = 1:numel(Sx)
+                rBot = sqrt((Xg - Sx(i)).^2 + (Yg - Sy(i)).^2 + Zg.^2);
+                rTop = sqrt((Xg - Sx(i)).^2 + (Yg - Sy(i)).^2 + (Zg - app.topbottomdistmEditField.Value).^2);
+                
+                app.ValArray = app.ValArray + ...
+                    (A./rBot .* cos(k*rBot - app.phaseArrayBottom(i) + phi0bottom)) + ...
+                    (A./rTop .* cos(k*rTop - app.phaseArrayTop(i) + phi0top));
+            end
+        end
         
         function PhiArrayPlot2D(app,phiArrayBottom, phiArrayTop)
             zUnit = rem(rad2deg(phiArrayBottom(:,:)),360);
@@ -285,13 +257,8 @@ classdef Pressure_displayer_project < matlab.apps.AppBase
             xlabel(app.UIAxes_9,"X");
             ylabel(app.UIAxes_9,"Y");
             title(app.UIAxes_9,"Phases of bottom array","FontSize",11,'fontweight','bold')
-            clim(app.UIAxes_9,[0,360]);
-            
+            clim(app.UIAxes_9,[0,360]);            
         end       
-
-        % functions below may require adjusting X and Y values, to display
-        % data properly, and not mirrored and/or displaying X data as Y
-        % data, and Y data as X data.
 
         % functionality of changing resolution, also requires adjusting.
         % Error may occur, of which reason is probably either 
@@ -299,8 +266,9 @@ classdef Pressure_displayer_project < matlab.apps.AppBase
         % missinteracting with Plot functions below.
         function PlotPressureSlices3D(app)
             cla(app.UIAxes_6,"reset");
-            graph = slice(app.UIAxes_6,app.PressureValueVectorX,app.PressureVauelVectorY,app.PressureValueVectorZ, ...
-                          app.ValArray,app.substituteFocPointX, app.substituteFocPointY, app.focusPointZ);
+            [Xg, Yg, Zg] = meshgrid(app.PressureValueVectorX, app.PressureValueVectorY, app.PressureValueVectorZ);
+            graph = slice(app.UIAxes_6, Xg, Yg, Zg, app.ValArray, ...
+                app.focusPointX, app.focusPointY, app.focusPointZ);
             set(graph,'EdgeColor','none',...
                        'FaceColor','interp',...
                        'FaceAlpha','interp')
@@ -309,53 +277,60 @@ classdef Pressure_displayer_project < matlab.apps.AppBase
             xlabel(app.UIAxes_6,"X");
             ylabel(app.UIAxes_6,"Y");
             zlabel(app.UIAxes_6,"Z");
-            view(app.UIAxes_6,120,30);          
-                        
+            view(app.UIAxes_6,120,30);
         end
         
         function PlotSlice2d(app)
-            cla(app.UIAxes_2,"reset");
-            graphX = slice(app.UIAxes_2,app.PressureValueVectorX,app.PressureVauelVectorY,app.PressureValueVectorZ, ...
-                          app.ValArray,app.substituteFocPointX,app.substituteFocPointY,app.focusPointZ);
+            [X, Y, Z] = meshgrid(app.PressureValueVectorX, app.PressureValueVectorY, app.PressureValueVectorZ);
+            V = abs(app.ValArray); 
+            
+            cX = app.focusPointX; 
+            cY = app.focusPointY; 
+            cZ = app.focusPointZ;
+        
+            configs = {
+                app.UIAxes_2,  90, 0,  "Side View (X)", 1; 
+                app.UIAxes_7,  0,  90, "Top View (Z)",  2;
+                app.UIAxes_10, 0,  0,  "Side View (Y)", 3
+            };
 
-            set(graphX,'EdgeColor','none',...
-                       'FaceColor','interp',...
-                       'FaceAlpha','interp')
-            grid(app.UIAxes_2,"off")
-            alpha(app.UIAxes_2,"color");
-            title(app.UIAxes_2,"Acoustic pressure - X values","FontSize",11,'fontweight','bold');
-            ylabel(app.UIAxes_2,"Y");
-            zlabel(app.UIAxes_2,"Z");
-            view(app.UIAxes_2,90,0);
-                        
-            cla(app.UIAxes_7,"reset");
-            graphX = slice(app.UIAxes_7,app.PressureValueVectorX,app.PressureVauelVectorY,app.PressureValueVectorZ, ...
-                          app.ValArray,app.substituteFocPointX,app.substituteFocPointY,app.focusPointZ);
+            globalMaxAmp = 0; % for scaling the slices
 
-            set(graphX,'EdgeColor','none',...
-                       'FaceColor','interp',...
-                       'FaceAlpha','interp')
-            grid(app.UIAxes_7,"off")
-            alpha(app.UIAxes_7,"color");
-            title(app.UIAxes_7,"Acoustic pressure - Z values","FontSize",11,'fontweight','bold');
-            xlabel(app.UIAxes_7,"X");
-            ylabel(app.UIAxes_7,"Y");
-            view(app.UIAxes_7,0,90);
-            colorbar(app.UIAxes_7,'eastoutside')
+            for i = 1:3
+                ax = configs{i,1};
+                mode = configs{i,5};
+                cla(ax, "reset");
+                
+                if mode == 1 
+                    h = slice(ax, X, Y, Z, V, cX, [], []);
+                    ylabel(ax, "Y"); zlabel(ax, "Z");
+                elseif mode == 2
+                    h = slice(ax, X, Y, Z, V, [], [], cZ);
+                    xlabel(ax, "X"); ylabel(ax, "Y");
+                elseif mode == 3
+                    h = slice(ax, X, Y, Z, V, [], cY, []);
+                    xlabel(ax, "X"); zlabel(ax, "Z");
+                end
+        
+                shading(ax, 'interp');
+                colormap(ax, 'jet');
+                view(ax, configs{i,2}, configs{i,3});
+                title(ax, configs{i,4});
+                axis(ax, 'tight');
 
-            cla(app.UIAxes_10,"reset");
-            graphX = slice(app.UIAxes_10,app.PressureValueVectorX,app.PressureVauelVectorY,app.PressureValueVectorZ, ...
-                          app.ValArray,app.substituteFocPointX,app.substituteFocPointY,app.focusPointZ);
+                % add colorbal to last slice
+                if mode == 2, colorbar(ax, 'eastoutside'); end
 
-            set(graphX,'EdgeColor','none',...
-                       'FaceColor','interp',...
-                       'FaceAlpha','interp')
-            grid(app.UIAxes_10,"off")
-            alpha(app.UIAxes_10,"color");
-            title(app.UIAxes_10,"Acoustic pressure - Y values","FontSize",11,'fontweight','bold');
-            xlabel(app.UIAxes_10,"X");
-            zlabel(app.UIAxes_10,"Z");
-            view(app.UIAxes_10,0,0);
+                currentSliceData = get(h, 'CData');
+                currentMaxAmp = max(currentSliceData(:), [], 'omitnan');
+                if currentMaxAmp > globalMaxAmp 
+                    globalMaxAmp = currentMaxAmp; 
+                end
+            end
+
+            clim(app.UIAxes_2, [0, globalMaxAmp]);
+            clim(app.UIAxes_7, [0, globalMaxAmp]);
+            clim(app.UIAxes_10, [0, globalMaxAmp]);
         end
         
         function PlotPressure3D(app)
@@ -375,8 +350,7 @@ classdef Pressure_displayer_project < matlab.apps.AppBase
             title(app.UIAxes_5,"Acoustic pressure 3D","FontSize",11,'fontweight','bold');
             xlabel(app.UIAxes_5,"X");
             ylabel(app.UIAxes_5,"Y");
-            zlabel(app.UIAxes_5,"Z");
-     
+            zlabel(app.UIAxes_5,"Z");     
         end
     end
 
@@ -453,10 +427,8 @@ classdef Pressure_displayer_project < matlab.apps.AppBase
             [app.focusPointX,app.focusPointY,app.focusPointZ] = app.CountFocusPointCoordinates;
             app.phaseArrayBottom = app.CountPhaseArray(0);
             app.phaseArrayTop = app.CountPhaseArray(app.topbottomdistmEditField.Value);
-            [app.PressureValueVectorX,app.PressureVauelVectorY,app.PressureValueVectorZ] = app.MakeMeshgridBase;
-            app.CountPressureLevelData(0,0);
-            app.substituteFocPointY = app.focusPointX/app.speakerCoordinatesX(end)*app.speakerCoordinatesY(end);
-            app.substituteFocPointX = app.focusPointY/app.speakerCoordinatesY(end)*app.speakerCoordinatesX(end);
+            [app.PressureValueVectorX,app.PressureValueVectorY,app.PressureValueVectorZ] = app.MakeMeshgridBase;
+            app.CountPressureLevelData(0,pi); %change to (0,0) to obtain maximum amplitude at focus point
             app.dataReady = true;
             app.TextArea.Value = "Data generated successfully.";
         end
